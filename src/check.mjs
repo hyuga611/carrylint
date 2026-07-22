@@ -4,13 +4,16 @@
 // SKILL.md / .claude/commands / AGENTS.md / CLAUDE.md / GEMINI.md / .cursor/rules などの本文から、
 // 作った本人の環境・モデル前提が焼き込まれた「実行時に可搬でない」記述を検出する。
 //
-//   ・abs-path       : マシン固有の絶対パス (C:\… /Users/… /home/… $HOME %USERPROFILE%)   [ERROR]
-//   ・placeholder    : 配布物に残った未解決プレースホルダ (<FILL_ME> YOUR_API_KEY path/to/…)  [ERROR]
-//   ・undeclared-cli : 本文が外部/プロバイダCLIを叩くのに宣言もインストール手順もない           [ERROR]
-//   ・home-path      : ~/… ホーム相対パス (ユーザー前提)                                        [WARN]
+//   ・abs-path       : 作者環境前提の絶対パス (C:\… や /Users/<実名>/ /home/<実名>/)          [ERROR]
+//                      ※ $HOME / ~ / %USERPROFILE% と汎用名(/home/user 等)は可搬なので対象外
+//   ・placeholder    : 配布物に残った未完成マーカー (<FILL_ME> REPLACE_ME CHANGEME <INSERT…>)  [ERROR]
+//                      ※ YOUR_API_KEY / /path/to/ は「置き換えてね」の正当な文書慣習なので対象外
+//   ・undeclared-cli : 外部/プロバイダCLIを宣言なしで叩く。ホストの mcp add/--version 等は除外  [WARN]
 //   ・provider-env   : プロバイダ固有の API キー env の生参照                                    [WARN]
 //   ・todo           : 配布物に残った TODO:/FIXME:/XXX:                                          [WARN]
 //   ・model-id       : モデルID直書き (claude-* gpt-* gemini-*)   ← 既定OFF・--model-ids で有効  [opt-in]
+//
+// v0.1.1: 実データ160+70リポの監査に基づき誤検知を除去（$HOME/~・汎用名・API例・ホストCLI）。
 //
 // Agent Skills はオープン標準として "形式" は 20+ エージェントで可搬になった。carrylint は
 // "中身が実際に動くか" を見る側。実行時に LLM も API キーも使わない純静的解析（依存ゼロ）。
@@ -65,28 +68,37 @@ export const DEFAULT_RULES = {
   ],
 };
 
-// 配布物に残っていたら「未完成」を示す、曖昧さの小さいプレースホルダ（ERROR）。
-// 汎用の <name> 等は意図的なテンプレなので拾わない（skills-lint と同じ思想）。
+// 配布物に残っていたら「作者が埋め忘れた未完成」を示す、曖昧さゼロのマーカーのみ（ERROR）。
+// v0.1.1: YOUR_API_KEY / /path/to/ / <your-x> は「実行時に置き換えてね」という正当な
+// ドキュメント慣習（実データ監査で 26/26 が誤検知）だったので ERROR から除外した。
 const PLACEHOLDER_ERROR = [
   /<fill[_\- ]?me>?/i,
   /\bfill[_\-]me\b/i,
   /\breplace[_\-]?me\b/i,
   /\bchange[_\-]?me\b/i,
-  /\byour[_\-](?:api[_\-]?key|token|secret|password)\b/i,
-  /<your-[^>]{1,40}>/i,
   /<insert[ _\-][^>]{1,40}>/i,
-  /\bpath\/to\/your\b/i,
-  /(?:^|[\s`"'(])\/path\/to\//,
-  /\bpath\/to\/\.{3}/,
 ];
 
 // ---------------- パターン（純粋・textスキャン） ----------------
 
-const DRIVE_ABS = /(?<![\w.])[A-Za-z]:\\[^\s`"')<>|]+/g;                 // C:\Users\atlan\…
-const UNIX_HOME_ABS = /(?<![\w.\-\/])\/(?:Users|home)\/[^\s`"')<>|]+/g;   // /Users/atlan/… /home/foo/…
-const ENV_HOME = /(?:\$\{?HOME\b\}?|%USERPROFILE%)/gi;                    // $HOME ${HOME} %USERPROFILE%
-const TILDE_HOME = /(?<![\w.])~\/[^\s`"')<>|]*/g;                         // ~/foo …（WARN）
+const DRIVE_ABS = /(?<![\w.])[A-Za-z]:\\[^\s`"')<>|]+/g;                       // C:\Users\atlan\…（Windows絶対=非可搬）
+// /Users/<name>/ ・ /home/<name>/ の <name> を捕捉（汎用名/glob は後段で除外）。
+const UNIX_USER_ABS = /(?<![\w.\-\/])\/(Users|home)\/([^\s/`"')<>|]+)([^\s`"')<>|]*)/g;
 const TODO_MARK = /(?:\b(?:TODO|FIXME|HACK|XXX)\b\s*[:：]|<!--\s*(?:TODO|FIXME)\b)/;
+
+// v0.1.1: $HOME / ${HOME} / %USERPROFILE% / ~ は各ユーザーで解決＝可搬。エラーにしない
+// （実データ監査で「これらは可搬な書き方」だと確認）。実在の個人パスは /Users/<実名>/ のみ。
+const GENERIC_USER = new Set([
+  'user', 'users', 'you', 'me', 'example', 'name', 'username', 'ubuntu', 'root',
+  'admin', 'foo', 'bar', 'home', 'someone', 'yourname', 'test', 'ec2-user',
+]);
+// ホスト/セットアップ系サブコマンドは「その場で使う道具」でなく「環境設定・確認」なので依存扱いしない
+// （実データ監査の undeclared-cli 誤検知は大半が `claude mcp add` / `codex mcp add` 等だった）。
+const META_SUBCMD = new Set([
+  'mcp', 'login', 'logout', 'config', 'configure', 'auth', 'add', 'install',
+  'update', 'upgrade', 'init', 'setup', 'doctor', 'version', 'help',
+  '--version', '-v', '--help', '-h',
+]);
 
 function push(findings, ln, kind, severity, msg) {
   findings.push({ ln, kind, severity, msg });
@@ -156,7 +168,10 @@ function cliInvocations(line, inFence, rules) {
         .replace(/^[!$#>]\s*/, '')
         .replace(/^sudo\s+/, '')
         .replace(/^(?:[A-Za-z_][\w]*=[^\s]*\s+)+/, '');
-      if (new RegExp('^' + w + '\\b\\s+\\S', 'i').test(rest)) hits.add(w);
+      const mm = new RegExp('^' + w + '\\b\\s+(\\S+)', 'i').exec(rest);
+      if (!mm) continue;                                    // 裸の言及（引数なし）は呼び出しでない
+      if (META_SUBCMD.has(mm[1].toLowerCase())) continue;   // mcp / --version / login 等は設定・確認＝依存でない
+      hits.add(w);
     }
   }
   return hits;
@@ -197,16 +212,16 @@ export function scan(text, opts = {}) {
     }
     if (ignored.has(ln)) return;
 
-    // 1) マシン固有の絶対パス（ERROR）
-    for (const re of [DRIVE_ABS, UNIX_HOME_ABS, ENV_HOME]) {
-      re.lastIndex = 0;
-      for (const m of line.matchAll(re)) {
-        push(findings, ln, 'abs-path', 'error', `マシン固有の絶対パス \`${m[0].trim()}\` — 他人の環境で解決しません（相対パスや {baseDir} に）`);
-      }
+    // 1) マシン固有の絶対パス（ERROR）。$HOME/~ は可搬なので対象外・汎用ユーザー名の例示も除外（v0.1.1）。
+    DRIVE_ABS.lastIndex = 0;
+    for (const m of line.matchAll(DRIVE_ABS)) {
+      push(findings, ln, 'abs-path', 'error', `マシン固有の絶対パス \`${m[0].trim()}\` — 他人の環境で解決しません（相対パスや {baseDir} に）`);
     }
-    // ~/ ホーム相対（WARN）
-    for (const m of line.matchAll(TILDE_HOME)) {
-      push(findings, ln, 'home-path', 'warn', `ホーム相対パス \`${m[0].trim()}\` — ユーザーのホーム前提です`);
+    UNIX_USER_ABS.lastIndex = 0;
+    for (const m of line.matchAll(UNIX_USER_ABS)) {
+      const user = (m[2] || '').toLowerCase();
+      if (GENERIC_USER.has(user) || user.includes('*') || user.startsWith('$')) continue; // /home/user, /home/*/ 等の例示は除外
+      push(findings, ln, 'abs-path', 'error', `作者環境前提の絶対パス \`${m[0].trim()}\` — 他人の環境に \`${m[1]}/${m[2]}\` は存在しません（相対パスや {baseDir} に）`);
     }
 
     // 2) 未解決プレースホルダ（ERROR）
@@ -218,10 +233,11 @@ export function scan(text, opts = {}) {
       }
     }
 
-    // 3) provider CLI 呼び出し（宣言なし→ERROR）
+    // 3) 外部/プロバイダCLIの呼び出し（宣言なし）。ホスト自身の設定/確認(mcp add 等)は除外済み。
+    //    概念的に曖昧なので v0.1.1 で ERROR→WARN に降格（PRは落とさず注意喚起のみ）。
     for (const cli of cliInvocations(line, inFence, rules)) {
       if (allow.has(cli) || declared.has(cli)) continue;
-      push(findings, ln, 'undeclared-cli', 'error', `\`${cli}\` を呼んでいますが、インストール手順も requires 宣言もありません（他環境で黙って失敗します）`);
+      push(findings, ln, 'undeclared-cli', 'warn', `\`${cli}\` を呼んでいますが、インストール手順も宣言もありません — 他環境では未導入かもしれません`);
     }
 
     // 4) プロバイダ固有 env の生参照（WARN）

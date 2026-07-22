@@ -24,6 +24,6 @@ description: Generate an image. Use when the user asks to create or generate an 
 
 3. API キーは環境変数 OPENAI_API_KEY から読む（設定済み前提）。
 
-4. サムネのバリエーションは YOUR_API_KEY を差し替えて実行する。
+4. 出力先パスは <FILL_ME> を実際のパスに差し替えてから実行する。
 
 TODO: あとで出力先を直す

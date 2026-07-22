@@ -23,30 +23,36 @@ test('abs-path: Windows drive-letter path → error', () => {
   assert.equal(sev(fs, 'abs-path'), 'error');
 });
 
-test('abs-path: /Users/ and /home/ → error, but URL path is ignored', () => {
+test('abs-path: /Users/<name>/ and /home/<name>/ → error, but URL path is ignored', () => {
   assert.ok(has(scan('open /Users/atlan/dev/x.md now'), 'abs-path'));
-  assert.ok(has(scan('cd /home/foo/project'), 'abs-path'));
+  assert.ok(has(scan('cd /home/alice/project'), 'abs-path'));
   // URL that merely contains /Users/ must NOT match
   assert.ok(!has(scan('see https://example.com/Users/guide'), 'abs-path'));
 });
 
-test('abs-path: $HOME / ${HOME} / %USERPROFILE% → error', () => {
-  assert.ok(has(scan('cd $HOME/skills'), 'abs-path'));
-  assert.ok(has(scan('cd ${HOME}/skills'), 'abs-path'));
-  assert.ok(has(scan('cd %USERPROFILE%\\skills'), 'abs-path'));
+test('abs-path (v0.1.1): generic /home/<generic> is NOT flagged (illustrative)', () => {
+  // /home/user, /home/ubuntu, /home/*/ are example/deploy paths, not a real personal path
+  assert.ok(!has(scan('cd /home/user/project'), 'abs-path'));
+  assert.ok(!has(scan('WorkingDirectory=/home/ubuntu'), 'abs-path'));
+  assert.ok(!has(scan('ls /home/*/anaconda3/envs/*/bin'), 'abs-path'));
 });
 
-test('home-path: ~/ → warn (not error)', () => {
-  const fs = scan('mv out.png ~/skills/assets/');
-  assert.ok(has(fs, 'home-path'));
-  assert.equal(sev(fs, 'home-path'), 'warn');
+test('abs-path (v0.1.1): $HOME / ${HOME} / %USERPROFILE% / ~ are portable → NOT flagged', () => {
+  // these resolve per-user, so they are the PORTABLE form — must not error
+  assert.ok(!has(scan('cd $HOME/skills'), 'abs-path'));
+  assert.ok(!has(scan('cd ${HOME}/skills'), 'abs-path'));
+  assert.ok(!has(scan('cd %USERPROFILE%\\skills'), 'abs-path'));
+  assert.deepEqual(scan('bash ~/.claude/skills/x/run.sh preview'), []);
 });
 
-test('placeholder: <FILL_ME> / YOUR_API_KEY / path/to/your → error', () => {
+test('placeholder (v0.1.1): only unfinished markers; API-doc conventions are NOT flagged', () => {
   assert.ok(has(scan('token: <FILL_ME>'), 'placeholder'));
-  assert.ok(has(scan('replace YOUR_API_KEY here'), 'placeholder'));
-  assert.ok(has(scan('read the file at path/to/your/config'), 'placeholder'));
+  assert.ok(has(scan('set REPLACE_ME here'), 'placeholder'));
   assert.equal(sev(scan('token: <FILL_ME>'), 'placeholder'), 'error');
+  // documentation conventions ("replace this at runtime") must NOT error
+  assert.ok(!has(scan('  -H "Authorization: Bearer YOUR_API_KEY"'), 'placeholder'));
+  assert.ok(!has(scan('cm reflect --workspace /path/to/project'), 'placeholder'));
+  assert.ok(!has(scan('Hatcher-Agent-Name: <your-agent-name>/<version>'), 'placeholder'));
 });
 
 test('placeholder: generic <name> template is NOT flagged', () => {
@@ -54,10 +60,17 @@ test('placeholder: generic <name> template is NOT flagged', () => {
   assert.ok(!has(scan('the file `<name>.md`'), 'placeholder'));
 });
 
-test('undeclared-cli: provider CLI invoked with no install/declare → error', () => {
+test('undeclared-cli (v0.1.1): provider CLI invoked with no install/declare → warn', () => {
   const fs = scan('generate it: `codex exec "make an image"`');
   assert.ok(has(fs, 'undeclared-cli'));
-  assert.equal(sev(fs, 'undeclared-cli'), 'error');
+  assert.equal(sev(fs, 'undeclared-cli'), 'warn'); // demoted from error in v0.1.1
+});
+
+test('undeclared-cli (v0.1.1): host setup subcommands (mcp/--version/login) are NOT flagged', () => {
+  // real-world FP: `claude mcp add` / `codex mcp add` configure the HOST, not a dependency
+  assert.ok(!has(scan('`claude mcp add --scope user foo -- npx -y foo`'), 'undeclared-cli'));
+  assert.ok(!has(scan('`codex mcp add foo -- npx -y foo`'), 'undeclared-cli'));
+  assert.ok(!has(scan('run `claude --version` to check'), 'undeclared-cli'));
 });
 
 test('undeclared-cli: suppressed when the CLI is installed in the body', () => {
@@ -90,8 +103,8 @@ test('undeclared-cli: prose mention of a provider word is NOT an invocation', ()
 test('undeclared-cli: bare `codex`/`gemini` in backticks is a mention, not an invocation', () => {
   // regression: dogfooding our own AGENTS.md flagged bare provider names listed in prose
   assert.ok(!has(scan('treats `codex` / `gemini` / `claude` / `ollama` equally'), 'undeclared-cli'));
-  // but with an argument it IS an invocation
-  assert.ok(has(scan('run `codex login` first'), 'undeclared-cli'));
+  // but a real work invocation (with a non-meta subcommand) IS flagged
+  assert.ok(has(scan('run `codex exec build` first'), 'undeclared-cli'));
 });
 
 test('provider-env: raw API-key env → warn', () => {

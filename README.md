@@ -20,17 +20,16 @@ Other skill linters check your skill is **spec-valid**. carrylint checks it **ac
 
 | kind | severity | 説明 |
 |---|---|---|
-| `abs-path` | **error** | マシン固有の絶対パス（`C:\Users\…` / `/Users/…` / `/home/…` / `$HOME` / `%USERPROFILE%`） |
-| `placeholder` | **error** | 配布物に残った未解決プレースホルダ（`<FILL_ME>` / `YOUR_API_KEY` / `path/to/your…`） |
-| `undeclared-cli` | **error** | 外部/プロバイダCLI（`codex` `gemini` `ollama` …）を叩くのに install 手順も `requires` 宣言もない |
-| `home-path` | warn | `~/…` ホーム相対パス（ユーザー前提） |
+| `abs-path` | **error** | 作者環境前提の絶対パス（`C:\Users\…` / `/Users/<実名>/` / `/home/<実名>/`）。`$HOME` / `~` / `%USERPROFILE%` と汎用名（`/home/user` 等）は可搬なので**対象外** |
+| `placeholder` | **error** | 配布物に残った未完成マーカー（`<FILL_ME>` / `REPLACE_ME` / `CHANGEME` / `<INSERT …>`）。`YOUR_API_KEY` / `/path/to/` は「置き換えてね」の正当な文書慣習なので**対象外** |
+| `undeclared-cli` | warn | 外部/プロバイダCLI（`codex` `ollama` …）を宣言なしで叩く。ホストの設定/確認（`claude mcp add` `codex --version` 等）は**除外** |
 | `provider-env` | warn | プロバイダ固有 API キー env の生参照（`OPENAI_API_KEY` …） |
 | `todo` | warn | 配布物に残った `TODO:` / `FIXME:` |
 | `model-id` | opt-in | モデルID直書き（`claude-*` / `gpt-*` / `gemini-*`）※`--model-ids` で有効化 |
 
-Low-noise by design: only the unambiguous breakers are **error** (fail the PR); the rest are **warn**; intentional model pinning is **off** unless you ask for it.
+Low-noise by design: only unambiguous, author-only breakers are **error** (fail the PR); the rest are **warn**. Validated against a real-world audit of 230 public skills (v0.1.1): every remaining `error` was a genuine hardcoded personal path.
 
-> 誤検知＝狼少年化が唯一の死因なので、曖昧さゼロのものだけ error にしています。
+> 誤検知＝狼少年化が唯一の死因。実データ230リポの監査で ERROR の誤検知をゼロに追い込みました（v0.1.1）。
 
 ## Use as a GitHub Action / CIで使う（定着の本体）
 
