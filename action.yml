@@ -1,0 +1,36 @@
+name: 'carrylint runtime-portability linter'
+description: 'Fail CI when a skill/command hardcodes machine- or model-specific assumptions: absolute paths, undeclared CLIs, unresolved placeholders. Zero-dep, model-agnostic.'
+author: 'hyuga611'
+branding:
+  icon: 'package'
+  color: 'blue'
+inputs:
+  paths:
+    description: 'Space-separated files or dirs to scan. Default: the repo (SKILL.md / AGENTS.md / CLAUDE.md / GEMINI.md / .claude/commands …).'
+    required: false
+    default: ''
+  strict:
+    description: 'Treat warnings as failures (exit 1).'
+    required: false
+    default: 'false'
+  model-ids:
+    description: 'Enable the opt-in hardcoded model-ID rule.'
+    required: false
+    default: 'false'
+runs:
+  using: 'composite'
+  steps:
+    - name: Run carrylint
+      shell: bash
+      # Caller inputs are passed via env (NOT ${{ }} inlined into the script) to avoid
+      # template/shell injection. $PATHS is intentionally unquoted so multiple space-separated
+      # paths split into separate argv; the flag array is quote-safe.
+      env:
+        PATHS: ${{ inputs.paths }}
+        STRICT: ${{ inputs.strict }}
+        MODEL_IDS: ${{ inputs.model-ids }}
+      run: |
+        args=()
+        [ "$STRICT" = "true" ] && args+=(--strict)
+        [ "$MODEL_IDS" = "true" ] && args+=(--model-ids)
+        node "$GITHUB_ACTION_PATH/src/check.mjs" "${args[@]}" $PATHS

@@ -1,0 +1,45 @@
+{
+  "name": "@hyuga/carrylint",
+  "version": "0.1.0",
+  "description": "Runtime-portability linter for agent skills & commands: fail CI when a SKILL.md / AGENTS.md / slash-command hardcodes machine- or model-specific assumptions (absolute paths, undeclared CLIs, unresolved placeholders). Zero-dependency, model-agnostic.",
+  "type": "module",
+  "bin": {
+    "carrylint": "src/check.mjs"
+  },
+  "files": [
+    "src",
+    "rules.json",
+    "action.yml"
+  ],
+  "scripts": {
+    "poc": "node src/check.mjs examples/bad",
+    "test": "node --test"
+  },
+  "keywords": [
+    "skill.md",
+    "agent-skills",
+    "claude",
+    "codex",
+    "gemini",
+    "ai",
+    "agent",
+    "linter",
+    "ci",
+    "portability",
+    "model-agnostic",
+    "cross-agent"
+  ],
+  "license": "MIT",
+  "author": "hyuga611",
+  "homepage": "https://github.com/hyuga611/carrylint",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyuga611/carrylint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hyuga611/carrylint/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

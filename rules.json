@@ -1,0 +1,36 @@
+{
+  "_comment": "carrylint のデータ駆動ルール辞書。ここを編集すれば scan() の判定が変わる（コード変更不要）。src/check.mjs の DEFAULT_RULES が同梱フォールバック。",
+
+  "providerClis": [
+    "codex", "gemini", "ollama", "claude", "aider", "cursor-agent",
+    "llm", "sgpt", "mods", "copilot", "goose"
+  ],
+
+  "packageBinaries": {
+    "@openai/codex": "codex",
+    "@google/gemini-cli": "gemini",
+    "@anthropic-ai/claude-code": "claude",
+    "@githubnext/github-copilot-cli": "copilot",
+    "@block/goose": "goose",
+    "aider-chat": "aider",
+    "aider-install": "aider",
+    "llm": "llm",
+    "shell-gpt": "sgpt"
+  },
+
+  "modelIdPatterns": [
+    "claude-[a-z0-9][a-z0-9.\\-]*",
+    "gpt-[0-9][a-z0-9.\\-]*",
+    "gpt-image-[0-9]",
+    "o[0-9]-[a-z0-9\\-]+",
+    "gemini-[0-9][a-z0-9.\\-]*",
+    "dall-e-[0-9]",
+    "text-embedding-[a-z0-9\\-]+"
+  ],
+
+  "providerEnv": [
+    "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
+    "AZURE_OPENAI_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "COHERE_API_KEY",
+    "OLLAMA_HOST", "OPENROUTER_API_KEY", "PERPLEXITY_API_KEY"
+  ]
+}

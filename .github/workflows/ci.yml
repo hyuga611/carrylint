@@ -1,0 +1,26 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unit tests
+        run: node --test
+
+  dogfood:
+    # carrylint lints its own portable files. If we ever hardcode a path or an
+    # undeclared CLI in our own docs/examples, this fails — same durability bet
+    # as reflint/skills-lint self-linting.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: carrylint self-check
+        run: node src/check.mjs AGENTS.md examples/good
