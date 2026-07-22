@@ -1,5 +1,5 @@
 name: 'carrylint runtime-portability linter'
-description: 'Fail CI when a skill/command hardcodes machine- or model-specific assumptions: absolute paths, undeclared CLIs, unresolved placeholders. Zero-dep, model-agnostic.'
+description: "Fail CI when a skill or command isn't portable: absolute paths, undeclared CLIs, placeholders. Zero-dep, model-agnostic."
 author: 'hyuga611'
 branding:
   icon: 'package'
