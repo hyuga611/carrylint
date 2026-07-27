@@ -1,5 +1,7 @@
 # carrylint
 
+> Part of a set of zero-dependency CI tools for AI-agent repos — start with **[reflint](https://github.com/hyuga611/reflint)**.
+
 **Your skill works on your machine. Does it work on your teammate's — or in a different agent?**
 `carrylint` is a zero-dependency, model-agnostic linter that fails your PR when a `SKILL.md`, `AGENTS.md`, or slash-command has your machine or your model baked in — absolute paths, undeclared external CLIs, unresolved placeholders. It runs **no LLM and needs no API key**: pure static analysis.
 
@@ -88,5 +90,20 @@ carrylint treats `codex` / `gemini` / `claude` / `ollama` / `aider` … **equall
 Part of a small family of zero-dependency, language-agnostic, CI-resident linters for AI-native artifacts.
 
 ## License
+
+## Related tools
+
+Zero-dependency CI linters for repos where AI agents do the work. Each one fails the PR on something that breaks quietly.
+
+| | Catches |
+| --- | --- |
+| [reflint](https://github.com/hyuga611/reflint) | `AGENTS.md` / `llms.txt` / `CLAUDE.md` pointing at commands, scripts, or paths that no longer exist |
+| [skills-lint](https://github.com/hyuga611/skills-lint) | `SKILL.md` broken references + `name`/trigger collisions between skills |
+| **carrylint** ← you are here | Skills with the author's machine or model baked in — absolute paths, undeclared CLIs, unresolved placeholders |
+| [genchi](https://github.com/hyuga611/genchi) | Agents reporting "done" without re-fetching real-world state |
+| [tracklint](https://github.com/hyuga611/tracklint) | Forms and CTAs that quietly stopped being wired for conversion tracking |
+| [tokenlint](https://github.com/hyuga611/tokenlint) | Hardcoded colors that bypass your design tokens |
+| [reflint for VS Code](https://github.com/hyuga611/reflint-vscode) | The same reflint checks, inline in the editor as you save |
+| [orogami](https://github.com/hyuga611/orogami) | Not a linter — natural Japanese/CJK line breaking for OGP images (BudouX + font subsetting) |
 
 MIT © hyuga611
