@@ -1,5 +1,7 @@
 # carrylint
 
+![carrylint fails CI on a machine-specific absolute path, an undeclared CLI, and an unresolved placeholder](docs/hero.svg)
+
 > Part of a set of zero-dependency CI tools for AI-agent repos — start with **[reflint](https://github.com/hyuga611/reflint)**.
 
 **Your skill works on your machine. Does it work on your teammate's — or in a different agent?**

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="304" viewBox="0 0 700 304" role="img" aria-label="Terminal: carrylint reports a machine-specific absolute path, an undeclared CLI, and an unresolved placeholder in a shared SKILL.md">
+  <title>Terminal: carrylint reports a machine-specific absolute path, an undeclared CLI, and an unresolved placeholder in a shared SKILL.md</title>
+  <defs>
+    <style>
+      .t { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace; font-size: 14.5px; }
+      .fg { fill: #c9d1d9; } .dim { fill: #7d8590; } .red { fill: #ff7b72; }
+      .green { fill: #3fb950; } .cyan { fill: #79c0ff; } .yel { fill: #d29922; } .mag { fill: #d2a8ff; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="700" height="304" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+  <rect x="1" y="1" width="698" height="36" rx="9" fill="#161b22"/>
+  <rect x="1" y="28" width="698" height="9" fill="#161b22"/>
+  <line x1="1" y1="37" x2="699" y2="37" stroke="#30363d" stroke-width="1"/>
+  <circle cx="22" cy="19" r="6" fill="#ff5f57"/>
+  <circle cx="42" cy="19" r="6" fill="#febc2e"/>
+  <circle cx="62" cy="19" r="6" fill="#28c840"/>
+  <text class="t dim" x="350" y="24" text-anchor="middle">carrylint — CI</text>
+  <text class="t" x="24" y="70"><tspan class="green" font-weight="700" xml:space="preserve">$</tspan><tspan class="fg" xml:space="preserve"> npx @hyuga/carrylint</tspan></text>
+  <text class="t" x="24" y="100"><tspan class="red" font-weight="700" xml:space="preserve">✗</tspan><tspan class="fg" xml:space="preserve"> leaky-image-gen/SKILL.md </tspan><tspan class="dim" xml:space="preserve">— </tspan><tspan class="red" xml:space="preserve">3 errors</tspan><tspan class="dim" xml:space="preserve"> / </tspan><tspan class="yel" xml:space="preserve">3 warnings</tspan></text>
+  <text class="t" x="24" y="124"><tspan class="red" xml:space="preserve">  ✗ </tspan><tspan class="dim" xml:space="preserve">:16 </tspan><tspan class="mag" xml:space="preserve">[abs-path]</tspan><tspan class="fg" xml:space="preserve"> machine-specific absolute path</tspan></text>
+  <text class="t" x="24" y="148"><tspan class="fg" xml:space="preserve">        </tspan><tspan class="cyan" xml:space="preserve">`C:\Users\atlan\Downloads\out.png`</tspan><tspan class="dim" xml:space="preserve"> — will not resolve elsewhere</tspan></text>
+  <text class="t" x="24" y="172"><tspan class="yel" xml:space="preserve">  • </tspan><tspan class="dim" xml:space="preserve">:16 </tspan><tspan class="mag" xml:space="preserve">[undeclared-cli]</tspan><tspan class="fg" xml:space="preserve"> calls </tspan><tspan class="cyan" xml:space="preserve">`codex`</tspan><tspan class="fg" xml:space="preserve"> but never installs it</tspan></text>
+  <text class="t" x="24" y="196"><tspan class="yel" xml:space="preserve">  • </tspan><tspan class="dim" xml:space="preserve">:25 </tspan><tspan class="mag" xml:space="preserve">[provider-env]</tspan><tspan class="fg" xml:space="preserve"> assumes </tspan><tspan class="cyan" xml:space="preserve">`OPENAI_API_KEY`</tspan><tspan class="fg" xml:space="preserve"> is set</tspan></text>
+  <text class="t" x="24" y="220"><tspan class="red" xml:space="preserve">  ✗ </tspan><tspan class="dim" xml:space="preserve">:27 </tspan><tspan class="mag" xml:space="preserve">[placeholder]</tspan><tspan class="fg" xml:space="preserve"> unresolved </tspan><tspan class="cyan" xml:space="preserve">`&lt;FILL_ME&gt;`</tspan><tspan class="fg" xml:space="preserve"> in a shipped file</tspan></text>
+  <text class="t" x="24" y="268"><tspan class="red" xml:space="preserve">carrylint: 3 errors</tspan><tspan class="dim" xml:space="preserve"> / 3 warnings     exit 1</tspan></text>
+</svg>
