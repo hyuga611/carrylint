@@ -215,20 +215,20 @@ export function scan(text, opts = {}) {
     // 1) マシン固有の絶対パス（ERROR）。$HOME/~ は可搬なので対象外・汎用ユーザー名の例示も除外（v0.1.1）。
     DRIVE_ABS.lastIndex = 0;
     for (const m of line.matchAll(DRIVE_ABS)) {
-      push(findings, ln, 'abs-path', 'error', `マシン固有の絶対パス \`${m[0].trim()}\` — 他人の環境で解決しません（相対パスや {baseDir} に）`);
+      push(findings, ln, 'abs-path', 'error', `machine-specific absolute path \`${m[0].trim()}\` — will not resolve on anyone else's machine (use a relative path or {baseDir})`);
     }
     UNIX_USER_ABS.lastIndex = 0;
     for (const m of line.matchAll(UNIX_USER_ABS)) {
       const user = (m[2] || '').toLowerCase();
       if (GENERIC_USER.has(user) || user.includes('*') || user.startsWith('$')) continue; // /home/user, /home/*/ 等の例示は除外
-      push(findings, ln, 'abs-path', 'error', `作者環境前提の絶対パス \`${m[0].trim()}\` — 他人の環境に \`${m[1]}/${m[2]}\` は存在しません（相対パスや {baseDir} に）`);
+      push(findings, ln, 'abs-path', 'error', `author-specific absolute path \`${m[0].trim()}\` — \`${m[1]}/${m[2]}\` does not exist elsewhere (use a relative path or {baseDir})`);
     }
 
     // 2) 未解決プレースホルダ（ERROR）
     for (const re of PLACEHOLDER_ERROR) {
       const m = line.match(re);
       if (m) {
-        push(findings, ln, 'placeholder', 'error', `未解決のプレースホルダ \`${m[0].trim()}\` が配布物に残っています`);
+        push(findings, ln, 'placeholder', 'error', `unresolved placeholder \`${m[0].trim()}\` left in a shipped file`);
         break; // 1行1件に留める
       }
     }
@@ -237,18 +237,18 @@ export function scan(text, opts = {}) {
     //    概念的に曖昧なので v0.1.1 で ERROR→WARN に降格（PRは落とさず注意喚起のみ）。
     for (const cli of cliInvocations(line, inFence, rules)) {
       if (allow.has(cli) || declared.has(cli)) continue;
-      push(findings, ln, 'undeclared-cli', 'warn', `\`${cli}\` を呼んでいますが、インストール手順も宣言もありません — 他環境では未導入かもしれません`);
+      push(findings, ln, 'undeclared-cli', 'warn', `calls \`${cli}\` but never declares or installs it — it may not be present elsewhere`);
     }
 
     // 4) プロバイダ固有 env の生参照（WARN）
     {
       const m = line.match(envRe);
-      if (m) push(findings, ln, 'provider-env', 'warn', `\`${m[0]}\` を前提にしています — .env.example に記載し未設定時の案内を`);
+      if (m) push(findings, ln, 'provider-env', 'warn', `assumes \`${m[0]}\` is set — document it in .env.example and handle the unset case`);
     }
 
     // 5) TODO/FIXME 残り（WARN）
     if (TODO_MARK.test(line)) {
-      push(findings, ln, 'todo', 'warn', '配布物に TODO/FIXME マーカーが残っています');
+      push(findings, ln, 'todo', 'warn', 'TODO/FIXME marker left in a shipped file');
     }
 
     // 6) モデルID直書き（opt-in）
@@ -258,7 +258,7 @@ export function scan(text, opts = {}) {
       for (const m of line.matchAll(modelRe)) {
         if (seen.has(m[0])) continue;
         seen.add(m[0]);
-        push(findings, ln, 'model-id', 'warn', `モデルID \`${m[0]}\` を直書きしています — 固定は意図的なら --allow / carry-ignore を`);
+        push(findings, ln, 'model-id', 'warn', `hardcoded model id \`${m[0]}\` — if pinning is deliberate, use --allow or carry-ignore`);
       }
     }
   });
@@ -363,7 +363,7 @@ export function main(argv) {
 
   if (files.length === 0) {
     if (asJson) console.log(JSON.stringify({ ok: true, count: 0, errors: 0, warnings: 0, findings: [] }, null, 2));
-    else console.log('carrylint: 対象ファイルなし（SKILL.md / AGENTS.md / CLAUDE.md / GEMINI.md / .claude/commands 等）。スキップ。');
+    else console.log('carrylint: no target file found (SKILL.md / AGENTS.md / CLAUDE.md / GEMINI.md / .claude/commands …) — skipping.');
     return 0;
   }
 
@@ -373,7 +373,7 @@ export function main(argv) {
     try { text = readFileSync(file, 'utf8'); }
     catch {
       if (asJson) { console.log(JSON.stringify({ ok: false, error: `cannot read ${file}` }, null, 2)); return 2; }
-      console.error(`carrylint: ${file} を読めません`);
+      console.error(`carrylint: cannot read ${file}`);
       return 2;
     }
     results.push({ file, findings: scan(text, { rules, allow, modelIds }) });
@@ -390,7 +390,7 @@ export function main(argv) {
   for (const { file, findings } of results) {
     if (findings.length === 0) { console.log(`✓ ${file}`); continue; }
     const errs = findings.filter((f) => f.severity === 'error').length;
-    console.error(`✗ ${file} — error ${errs} / warn ${findings.length - errs}`);
+    console.error(`✗ ${file} — ${errs} error${errs === 1 ? '' : 's'} / ${findings.length - errs} warning${findings.length - errs === 1 ? '' : 's'}`);
     for (const f of findings) {
       const ln = f.ln || 1;
       const tag = f.severity === 'error' ? 'ERROR' : 'warn ';
@@ -404,14 +404,14 @@ export function main(argv) {
   }
 
   if (errors > 0 || (strict && warnings > 0)) {
-    console.error(`\ncarrylint: error ${errors} / warn ${warnings}${strict ? '（--strict: warn も失敗）' : ''}`);
+    console.error(`\ncarrylint: ${errors} error${errors === 1 ? '' : 's'} / ${warnings} warning${warnings === 1 ? '' : 's'}${strict ? ' (--strict: warnings fail too)' : ''}`);
     return 1;
   }
   if (warnings > 0) {
-    console.error(`\ncarrylint: error 0 / warn ${warnings}（warn は exit 0。--strict で失敗させられます）`);
+    console.error(`\ncarrylint: 0 errors / ${warnings} warning${warnings === 1 ? '' : 's'} (warnings exit 0 — use --strict to fail on them)`);
     return 0;
   }
-  console.log(`carrylint: ${files.length} ファイル、すべて可搬OK`);
+  console.log(`carrylint: ${files.length} file${files.length === 1 ? '' : 's'}, all portable`);
   return 0;
 }
 
