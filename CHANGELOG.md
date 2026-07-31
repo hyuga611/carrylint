@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1
+
+- **Added `main` / `exports` so the package can be imported as a library.** With neither field
+  present, `import { scan } from '@hyuga/carrylint'` did not resolve: the rules were reachable
+  only by spawning the CLI, even though `src/check.mjs` had exported `scan`, `findFiles`,
+  `toJson` and `main` all along. The CLI, its flags and its output are unchanged. `./rules.json`
+  is exported as well, so a consumer can read the shipped rule set without reaching into the
+  package layout.
+
 ## 0.1.1
 
 Precision hardening, driven by a real-world audit of **230 public `SKILL.md` / `AGENTS.md`
