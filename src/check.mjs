@@ -92,6 +92,8 @@ const GENERIC_USER = new Set([
   'user', 'users', 'you', 'me', 'example', 'name', 'username', 'ubuntu', 'root',
   'admin', 'foo', 'bar', 'home', 'someone', 'yourname', 'test', 'ec2-user',
 ]);
+// 大文字で書かれた「置き換えてね」の雛形語（GENERIC_USER と違い大小を区別する）。
+const PLACEHOLDER_USER = new Set(['USERNAME', 'USER', 'YOURNAME', 'YOURUSER', 'NAME', 'ME']);
 // ホスト/セットアップ系サブコマンドは「その場で使う道具」でなく「環境設定・確認」なので依存扱いしない
 // （実データ監査の undeclared-cli 誤検知は大半が `claude mcp add` / `codex mcp add` 等だった）。
 const META_SUBCMD = new Set([
@@ -219,8 +221,16 @@ export function scan(text, opts = {}) {
     }
     UNIX_USER_ABS.lastIndex = 0;
     for (const m of line.matchAll(UNIX_USER_ABS)) {
-      const user = (m[2] || '').toLowerCase();
+      const raw = m[2] || '';
+      const user = raw.toLowerCase();
       if (GENERIC_USER.has(user) || user.includes('*') || user.startsWith('$')) continue; // /home/user, /home/*/ 等の例示は除外
+      // 大文字の「単語としての雛形」だけを除外する。`/home/YOUR_USER/…`
+      // `/Users/USERNAME/…` は YOUR_API_KEY と同じ「置き換えてね」の文書慣習
+      // （ClawHub 実データ監査・2026-08）。
+      // 単なる全大文字では広すぎる: `/Users/CS/…` は実在の作者のホーム（2026-07監査で確認）。
+      // アンダースコア区切り、または既知の雛形語だけを雛形と見なす。
+      if (/^[A-Z][A-Z0-9]*_[A-Z0-9_]*$/.test(raw) || PLACEHOLDER_USER.has(raw)) continue;
+      if (/[<>{}\[\]]/.test(raw)) continue; // /home/<your-name>/ 形式の穴埋め
       push(findings, ln, 'abs-path', 'error', `author-specific absolute path \`${m[0].trim()}\` — \`${m[1]}/${m[2]}\` does not exist elsewhere (use a relative path or {baseDir})`);
     }
 

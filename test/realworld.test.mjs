@@ -47,3 +47,30 @@ for (const [label, text, kind] of mustNotFlag) {
     assert.ok(!has(scan(text), kind), `v0.1.1 should NOT raise ${kind} for: ${text}`);
   });
 }
+
+// --- ClawHub registry audit (2026-08) ------------------------------------------------
+// An uppercase word template in the user segment is the same "replace this" documentation
+// convention as YOUR_API_KEY. A real author home must still be caught — `/Users/CS/` is a
+// person's initials, confirmed genuine in the 2026-07 audit above.
+const upperUserTemplates = [
+  ['nest-devices: /home/YOUR_USER cloudflared doc', 'credentials-file: /home/YOUR_USER/.cloudflared/TUNNEL_ID.json'],
+  ['/Users/USERNAME doc template', 'Place the repo at `/Users/USERNAME/projects/app`.'],
+  ['/home/<your-name> angle-bracket template', 'Install to `/home/<your-name>/bin`.'],
+  ['/Users/MY_NAME underscore template', 'Set root to `/Users/MY_NAME/workspace`.'],
+];
+for (const [label, text] of upperUserTemplates) {
+  test(`mustNotFlag: ${label} → no abs-path`, () => {
+    assert.ok(!has(scan(text), 'abs-path'), `should not raise abs-path for: ${text}`);
+  });
+}
+
+const realAuthorHomes = [
+  ['CSlawyer1985: initials are a real user, not a template', '先读取 `/Users/CS/Documents/x.md`。'],
+  ['chinese-chess: /Users/root009', 'Board state lives in `/Users/root009/projects/demos/g1/game2`.'],
+  ['openclaw-live-updater: maintainer home in a shipped first-party skill', 'Keep `/Users/steipete/openclaw` a read-only mirror.'],
+];
+for (const [label, text] of realAuthorHomes) {
+  test(`mustFlag: ${label} → abs-path`, () => {
+    assert.ok(has(scan(text), 'abs-path'), `expected abs-path for: ${text}`);
+  });
+}

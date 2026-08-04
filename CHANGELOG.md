@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.2
+
+- **An uppercase word template in the user segment of an absolute path is no longer reported as
+  an author path.** `/home/YOUR_USER/.cloudflared/…`, `/Users/USERNAME/…` and `/Users/MY_NAME/…`
+  are the same "replace this" documentation convention v0.1.1 already accepted for
+  `YOUR_API_KEY` and `/path/to/`, but they were still reported as machine-specific paths.
+  Only underscore-separated uppercase words and a small known set (`USERNAME`, `YOURNAME`, …)
+  are excused — a bare uppercase segment is deliberately *not* enough, because `/Users/CS/` is
+  a real author's initials, confirmed genuine in the 2026-07 audit. Both directions are pinned
+  in `test/realworld.test.mjs`. Found auditing the ClawHub registry, 2026-08.
+
 ## 0.2.1
 
 - **Added `main` / `exports` so the package can be imported as a library.** With neither field

@@ -2,7 +2,7 @@
 
 ![carrylint fails CI on a machine-specific absolute path, an undeclared CLI, and an unresolved placeholder](docs/hero.svg)
 
-> Part of a set of zero-dependency CI tools for AI-agent repos — start with **[reflint](https://github.com/hyuga611/reflint)**.
+> One of three zero-dependency linters for AI-agent repos. To run all three in a single pass, with one report and one exit code, use **[tenken](https://github.com/hyuga611/tenken)** — `npx @hyuga/tenken`.
 
 **Your skill works on your machine. Does it work on your teammate's — or in a different agent?**
 `carrylint` is a zero-dependency, model-agnostic linter that fails your PR when a `SKILL.md`, `AGENTS.md`, or slash-command has your machine or your model baked in — absolute paths, undeclared external CLIs, unresolved placeholders. It runs **no LLM and needs no API key**: pure static analysis.
@@ -19,6 +19,22 @@
 Other skill linters check your skill is **spec-valid**. carrylint checks it **actually runs when someone else installs it**.
 
 > オープン標準化で "形式" は可搬になった。carrylint は "中身が実際に動くか" を見る側です。
+
+## Tried on real code / 実データに当てた
+
+**3.8%** of a random sample of 2,465 skills published on [ClawHub](https://clawhub.ai) contain an
+absolute path that resolves only on the author's machine — `/Users/root009/projects/demos/g1/game2`,
+`D:\Personal\OpenClaw\figures\`. Drawn from 69,265 enumerated, August 2026, seed `20260804`.
+
+The same rule fires on the **first-party skills bundled in
+[openclaw/openclaw](https://github.com/openclaw/openclaw)** (385k stars), where
+`openclaw-live-updater` instructs the agent to treat `/Users/steipete/openclaw` — the maintainer's
+own home directory — as a deployment mirror.
+
+Precision is treated as the product. v0.1.1 was retuned after a 230-repository audit cut its false
+positives by ~85%; v0.2.2 stopped reading `/home/YOUR_USER/…` as an author path while deliberately
+still catching `/Users/CS/…`, which is a real person's initials. Both directions are pinned in
+[`test/realworld.test.mjs`](test/realworld.test.mjs).
 
 ## What it checks / 何を見るか
 
@@ -99,6 +115,7 @@ Zero-dependency CI linters for repos where AI agents do the work. Each one fails
 
 | | Catches |
 | --- | --- |
+| **[tenken](https://github.com/hyuga611/tenken)** — start here | Runs reflint + skills-lint + carrylint over one tree: one report, one exit code, one Action |
 | [reflint](https://github.com/hyuga611/reflint) | `AGENTS.md` / `llms.txt` / `CLAUDE.md` pointing at commands, scripts, or paths that no longer exist |
 | [skills-lint](https://github.com/hyuga611/skills-lint) | `SKILL.md` broken references + `name`/trigger collisions between skills |
 | **carrylint** ← you are here | Skills with the author's machine or model baked in — absolute paths, undeclared CLIs, unresolved placeholders |
