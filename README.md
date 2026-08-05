@@ -26,10 +26,15 @@ Other skill linters check your skill is **spec-valid**. carrylint checks it **ac
 absolute path that resolves only on the author's machine — `/Users/root009/projects/demos/g1/game2`,
 `D:\Personal\OpenClaw\figures\`. Drawn from 69,265 enumerated, August 2026, seed `20260804`.
 
-The same rule fires on the **first-party skills bundled in
-[openclaw/openclaw](https://github.com/openclaw/openclaw)** (385k stars), where
-`openclaw-live-updater` instructs the agent to treat `/Users/steipete/openclaw` — the maintainer's
-own home directory — as a deployment mirror.
+The same rule fires on a **first-party skill bundled in
+[openclaw/openclaw](https://github.com/openclaw/openclaw)** (385k stars): `openclaw-live-updater`
+treats `/Users/steipete/openclaw` — the maintainer's own home directory — as a deployment mirror.
+
+That one turned out **not** to be a bug, and the distinction is the point. Reading the skill shows
+it is an explicit single-machine runbook for one canonical live checkout, so the path is intended
+and it was deliberately excluded from the [upstream report](https://github.com/openclaw/openclaw/issues/119393).
+carrylint is right to surface it and wrong to decide it: the rule finds candidates, a human keeps
+or dismisses them. Dismissing one costs a `<!-- carry-ignore -->`.
 
 Precision is treated as the product. v0.1.1 was retuned after a 230-repository audit cut its false
 positives by ~85%; v0.2.2 stopped reading `/home/YOUR_USER/…` as an author path while deliberately
