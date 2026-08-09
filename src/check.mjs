@@ -81,7 +81,7 @@ const PLACEHOLDER_ERROR = [
 
 // ---------------- パターン（純粋・textスキャン） ----------------
 
-const DRIVE_ABS = /(?<![\w.])[A-Za-z]:\\[^\s`"')<>|]+/g;                       // C:\Users\atlan\…（Windows絶対=非可搬）
+const DRIVE_ABS = /(?<![\w.])[A-Za-z]:\\[^\s`"')<>|]+/g;                       // C:\Users\alice\…（Windows絶対=非可搬）
 // /Users/<name>/ ・ /home/<name>/ の <name> を捕捉（汎用名/glob は後段で除外）。
 const UNIX_USER_ABS = /(?<![\w.\-\/])\/(Users|home)\/([^\s/`"')<>|]+)([^\s`"')<>|]*)/g;
 const TODO_MARK = /(?:\b(?:TODO|FIXME|HACK|XXX)\b\s*[:：]|<!--\s*(?:TODO|FIXME)\b)/;

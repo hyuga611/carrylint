@@ -13,13 +13,13 @@ description: Generate an image. Use when the user asks to create or generate an 
 1. 画像を生成する:
 
    ```bash
-   codex exec "generate an image with gpt-image-2" --output C:\Users\atlan\Downloads\out.png
+   codex exec "generate an image with gpt-image-2" --output C:\Users\alice\Downloads\out.png
    ```
 
 2. できた画像をここに移す:
 
    ```bash
-   mv C:\Users\atlan\Downloads\out.png ~/skills/assets/
+   mv C:\Users\alice\Downloads\out.png ~/skills/assets/
    ```
 
 3. API キーは環境変数 OPENAI_API_KEY から読む（設定済み前提）。

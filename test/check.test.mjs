@@ -18,13 +18,13 @@ test('clean portable text → no findings', () => {
 });
 
 test('abs-path: Windows drive-letter path → error', () => {
-  const fs = scan('Save to `C:\\Users\\atlan\\Downloads\\out.png`.');
+  const fs = scan('Save to `C:\\Users\\alice\\Downloads\\out.png`.');
   assert.ok(has(fs, 'abs-path'));
   assert.equal(sev(fs, 'abs-path'), 'error');
 });
 
 test('abs-path: /Users/<name>/ and /home/<name>/ → error, but URL path is ignored', () => {
-  assert.ok(has(scan('open /Users/atlan/dev/x.md now'), 'abs-path'));
+  assert.ok(has(scan('open /Users/alice/dev/x.md now'), 'abs-path'));
   assert.ok(has(scan('cd /home/alice/project'), 'abs-path'));
   // URL that merely contains /Users/ must NOT match
   assert.ok(!has(scan('see https://example.com/Users/guide'), 'abs-path'));
