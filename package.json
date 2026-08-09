@@ -1,6 +1,6 @@
 {
   "name": "@hyuga/carrylint",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Runtime-portability linter for agent skills & commands: fail CI when a SKILL.md / AGENTS.md / slash-command hardcodes machine- or model-specific assumptions (absolute paths, undeclared CLIs, unresolved placeholders). Zero-dependency, model-agnostic.",
   "type": "module",
   "main": "src/check.mjs",

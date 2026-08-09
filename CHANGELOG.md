@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.3
+
+- **The examples no longer carry a real Windows account name.** The fixtures that demonstrate
+  the `abs-path` rule used the maintainer's own home directory, and one of them lives in `src/`,
+  so it shipped in the package. It is not a credential, but a generic name demonstrates the rule
+  exactly as well. The rule itself is unchanged and still fires on the example.
+- Releases are now made by pushing a tag: the workflow runs the tests on Node 20, 22 and 24,
+  refuses to publish if the tag and `package.json` disagree, and publishes with
+  [provenance](https://docs.npmjs.com/generating-provenance-statements) using npm trusted
+  publishing, so no long-lived token is stored anywhere.
+
 ## 0.2.2
 
 - **An uppercase word template in the user segment of an absolute path is no longer reported as
