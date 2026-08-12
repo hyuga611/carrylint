@@ -32,3 +32,15 @@ jobs:
           node-version: 20
       - name: carrylint self-check
         run: node src/check.mjs AGENTS.md examples/good
+
+  lint:
+    # Correctness rules only, no formatter. biome.jsonc records which rules are off
+    # and why: each one is a preference this codebase already applies consistently,
+    # so enforcing a different one would be churn rather than improvement.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run lint

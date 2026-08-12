@@ -26,8 +26,8 @@
 //
 // 行内無効化: 行末に <!-- carry-ignore --> でその行を無視。単独行 <!-- carry-ignore-next --> で次行を無視。
 
-import { readFileSync, existsSync, readdirSync, statSync, realpathSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { readFileSync, readdirSync, statSync, realpathSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // ---------------- ルール辞書（既定・rules.json で上書き可能） ----------------
@@ -325,7 +325,10 @@ export function parseArgs(argv) {
   let strict = process.env.CARRYLINT_STRICT === '1';
   let modelIds = process.env.CARRYLINT_MODEL_IDS === '1';
   let asJson = process.env.CARRYLINT_FORMAT === 'json';
-  const addAllow = (s) => (s || '').split(',').forEach((n) => n.trim() && allow.add(n.trim().toLowerCase()));
+  const addAllow = (s) =>
+    (s || '').split(',').forEach((n) => {
+      if (n.trim()) allow.add(n.trim().toLowerCase());
+    });
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--') continue;
@@ -403,7 +406,6 @@ export function main(argv) {
     console.error(`✗ ${file} — ${errs} error${errs === 1 ? '' : 's'} / ${findings.length - errs} warning${findings.length - errs === 1 ? '' : 's'}`);
     for (const f of findings) {
       const ln = f.ln || 1;
-      const tag = f.severity === 'error' ? 'ERROR' : 'warn ';
       console.error(`  ${f.severity === 'error' ? '✗' : '•'} ${file}:${ln}\t[${f.kind}] ${f.msg}`);
       if (inActions) {
         const level = f.severity === 'error' ? 'error' : 'warning';

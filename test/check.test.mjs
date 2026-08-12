@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { scan, parseArgs, toJson, findFiles } from '../src/check.mjs';
 
-const kinds = (fs) => fs.map((f) => f.kind);
 const has = (fs, kind) => fs.some((f) => f.kind === kind);
 const sev = (fs, kind) => fs.find((f) => f.kind === kind)?.severity;
 
