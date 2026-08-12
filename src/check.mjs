@@ -26,7 +26,7 @@
 //
 // 行内無効化: 行末に <!-- carry-ignore --> でその行を無視。単独行 <!-- carry-ignore-next --> で次行を無視。
 
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -426,6 +426,22 @@ export function main(argv) {
 }
 
 // 直接実行された時だけ CLI として動く（import 時は関数だけ公開）。
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+//
+// argv[1] は「どう呼ばれたか」のパス。`npm i -g` も `npx` もそこにシンボリックリンクを置くので、
+// 解決済みの実パスである import.meta.url とは一致せず、install した版の CLI は何もせずに
+// exit 0 で終わっていた。リンタにとってこれは最悪の壊れ方で、「問題を見つけなかった」と
+// 「一度も動いていない」が区別できない。比較する前にリンクを解決する。
+function runDirectly() {
+  const arg = process.argv[1];
+  if (!arg) return false;
+  if (import.meta.url === pathToFileURL(arg).href) return true;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(arg)).href;
+  } catch {
+    return false;
+  }
+}
+
+if (runDirectly()) {
   process.exit(main(process.argv.slice(2)));
 }
