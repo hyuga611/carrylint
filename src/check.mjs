@@ -30,6 +30,16 @@ import { readFileSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+// Read rather than hardcoded: a version constant is one more place a release has to
+// remember, and the one nobody notices going stale.
+const VERSION = (() => {
+  try {
+    return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  } catch {
+    return 'unknown';
+  }
+})();
+
 // ---------------- ルール辞書（既定・rules.json で上書き可能） ----------------
 
 export const DEFAULT_RULES = {
@@ -321,6 +331,7 @@ export function findFiles(paths) {
 /** argv から オプションを取り出し、残りをパスとして返す。 */
 export function parseArgs(argv) {
   const paths = [];
+  const unknown = [];
   const allow = new Set();
   let strict = process.env.CARRYLINT_STRICT === '1';
   let modelIds = process.env.CARRYLINT_MODEL_IDS === '1';
@@ -339,9 +350,13 @@ export function parseArgs(argv) {
     else if (a.startsWith('--format=')) { if (a.slice(9) === 'json') asJson = true; }
     else if (a === '--allow') addAllow(argv[++i]);
     else if (a.startsWith('--allow=')) addAllow(a.slice(8));
+    // A token starting with "-" is never a path. Letting one through as a path is how
+    // a mistyped CI flag turned this linter off: it scanned a directory that did not
+    // exist, found no target file, and exited 0 with the check still green.
+    else if (a.startsWith('-')) unknown.push(a);
     else paths.push(a);
   }
-  return { paths, allow, strict, modelIds, asJson };
+  return { paths, unknown, allow, strict, modelIds, asJson };
 }
 
 /** rules.json をモジュール同梱位置から読む（無ければ既定）。 */
@@ -368,9 +383,38 @@ export function toJson(results) {
   return { ok: errors === 0, count: findings.length, errors, warnings: findings.length - errors, findings };
 }
 
+const HELP = `carrylint ${VERSION} — will this skill work on anybody else's machine?
+
+  carrylint [path ...]      default: SKILL.md, AGENTS.md, CLAUDE.md, GEMINI.md,
+                            .claude/commands/
+
+  --strict                  warnings fail the run too
+  --model-ids               flag pinned model identifiers
+  --allow a,b               commands to treat as present
+  --format json | --json    machine-readable output
+  -h, --help  ·  -v, --version
+
+  Inline: <!-- carry-ignore --> at end of line, <!-- carry-ignore-next --> on its own.
+
+  exit 0 nothing to fix (or nothing to check) / 1 findings / 2 could not run
+`;
+
 export function main(argv) {
+  if (argv.includes('--help') || argv.includes('-h')) {
+    process.stdout.write(HELP);
+    return 0;
+  }
+  if (argv.includes('--version') || argv.includes('-v')) {
+    process.stdout.write(VERSION + '\n');
+    return 0;
+  }
   const inActions = process.env.GITHUB_ACTIONS === 'true';
-  const { paths, allow, strict, modelIds, asJson } = parseArgs(argv);
+  const { paths, unknown, allow, strict, modelIds, asJson } = parseArgs(argv);
+  if (unknown.length) {
+    console.error(`carrylint: unknown option ${unknown.join(', ')}`);
+    console.error('carrylint: run with --help to see what it takes');
+    return 2;
+  }
   const rules = loadRules();
   const files = findFiles(paths.length ? paths : defaultTargets());
 
