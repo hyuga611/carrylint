@@ -153,6 +153,12 @@ const ILLUSTRATIVE = /\b(?:e\.?g\.?|for example|example[:s]?|sample)\b|例え?�
 // 「`git push` は勝手にするな」の類が普通に並ぶので、これを書き込み手順と数えると
 // **禁止を明記した人ほど警告される**（0.3.1 の undeclared-cli と同じ形の誤検知）。
 const PROHIBITION = /\b(?:never|do not|don't|doesn't|must not|should not|avoid|prohibited|forbidden|no need to)\b|禁止|するな|しないで|してはいけない|勝手に|不可/i;
+// 「いつやってよいか」を定めているだけの行。禁止語は無いので PROHIBITION では拾えない
+// （`git push` は明示の指示があるときだけ／Only run it when the user asks）。
+// 手順ではなく方針なので、fence の外＝地の文にインラインで書かれている場合だけ除外する。
+// fence の中は実行するコマンドの並びなので、この除外は当てない。
+// `only … when` は語が離れるので、間を **上限つき** で跨ぐ（無制限にすると長い行で総当たりになる）。
+const CONDITIONAL = /\bonly\b[^\n]{0,40}\b(?:when|if|after|with)\b|\bwhen\s+(?:the\s+)?(?:user|caller|human)\s+(?:asks?|requests?)|\b(?:unless|requires?\s+(?:approval|permission|sign-?off|confirmation)|ask(?:s|ed)?\s+(?:first|before)|with\s+(?:explicit\s+)?(?:permission|approval))\b|ときだけ|時だけ|場合だけ|場合のみ|ときのみ|指示があ|許可|承認|求められ/i;
 // 長い一致で行が読めなくなるので、メッセージに載せる引用は詰める。
 const brief = (s) => (s.length > 40 ? `${s.slice(0, 39)}…` : s);
 
@@ -380,7 +386,7 @@ export function scan(text, opts = {}) {
 
     // 7) 外部状態を書き換える手順（あとで本文全体の読み直しの有無と突き合わせる）。
     //    undeclared-cli と同じくコード文脈でだけ数える——散文の言及は手順ではない。
-    if (!firstWrite && !PROHIBITION.test(line)) {
+    if (!firstWrite && !PROHIBITION.test(line) && !(!inFence && CONDITIONAL.test(line))) {
       const code = inFence ? line : Array.from(line.matchAll(/`([^`]+)`/g), (m) => m[1]).join(' ; ');
       if (code) {
         for (const re of writeRes) {

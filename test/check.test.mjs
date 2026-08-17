@@ -247,6 +247,21 @@ test('unverified-write: 「やるな」と書いてある行は手順ではな�
   }
 });
 
+// 禁止語を含まない「いつやってよいか」の方針文。0.4.0 では手順として数えていた。
+// fence の中は実行するコマンドの並びなので、この除外は当てない（本物を落とさないため）。
+test('unverified-write: 「〜のときだけ」の方針文は手順ではない', () => {
+  for (const t of [
+    '- `git push` は明示の指示があるときだけ。',
+    '- `npm publish` はレビューの承認後のみ。',
+    'Only run `git push` when the user asks.',
+    '`npm publish` requires approval from a maintainer.',
+  ]) {
+    assert.ok(!has(scan(t), 'unverified-write'), `方針文を手順と数えた: ${t}`);
+  }
+  // 同じ語がコードブロックの中にあるだけなら、手順であることは変わらない
+  assert.ok(has(scan('```bash\ngit push origin main   # main のみ\n```'), 'unverified-write'));
+});
+
 test('unverified-write: 散文の言及は手順ではない（コード文脈でだけ数える）', () => {
   assert.ok(!has(scan('After that we push to git and publish to npm.'), 'unverified-write'));
   assert.ok(has(scan('run `npm publish` last'), 'unverified-write'));
