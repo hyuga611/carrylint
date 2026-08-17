@@ -131,12 +131,24 @@ function declaredTools(text, rules) {
     if (name) declared.add(name);
   };
 
-  // frontmatter の allowed-tools / requires
+  // frontmatter の allowed-tools / requires。
+  // インラインだけでなく YAML のブロックリストも読む。`requires:` の下に `- codex` と
+  // 並べるのは YAML では最も自然な書き方で、そこを読めないと「依存をきちんと宣言した
+  // スキル」ほど undeclared-cli に刺さる（誤検知＝リンタの死因）。
   const fm = text.match(/^﻿?---\r?\n([\s\S]*?)\r?\n---/);
   if (fm) {
+    const addList = (s) => s.replace(/[\[\]"']/g, '').split(/[,\s]+/).forEach(add);
+    let inDepList = false;
     for (const line of fm[1].split(/\r?\n/)) {
-      const m = line.match(/^\s*(?:allowed-tools|requires|tools|dependencies)\s*:\s*(.+)$/i);
-      if (m) m[1].replace(/[\[\]"']/g, '').split(/[,\s]+/).forEach(add);
+      const m = line.match(/^\s*(?:allowed-tools|requires|tools|dependencies)\s*:\s*(.*)$/i);
+      if (m) {
+        if (m[1].trim()) addList(m[1]);   // requires: codex / [a, b]
+        else inDepList = true;            // requires:  → 次行以降の `- x` を拾う
+        continue;
+      }
+      const item = inDepList && line.match(/^\s+-\s*(.+)$/);
+      if (item) addList(item[1]);
+      else if (line.trim()) inDepList = false; // 別のキーに移ったら終了（空行は跨ぐ）
     }
   }
 

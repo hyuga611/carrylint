@@ -88,6 +88,24 @@ test('undeclared-cli: suppressed when declared in frontmatter requires', () => {
   assert.ok(!has(scan(t), 'undeclared-cli'));
 });
 
+// YAML で複数の依存を書けば普通はブロックリストになる。そこを読めていなかったので、
+// 依存をきちんと宣言したスキルほど誤検知していた（v0.3.1 で修正）。
+test('undeclared-cli: suppressed when declared as a YAML block list', () => {
+  for (const key of ['requires', 'allowed-tools', 'dependencies']) {
+    const t = ['---', 'name: x', `${key}:`, '  - codex', '  - gemini', '---',
+      'run `codex exec y` then `gemini -p z`'].join('\n');
+    assert.ok(!has(scan(t), 'undeclared-cli'), key);
+  }
+});
+
+// ブロックリストは次のキーで終わる。終わらないと無関係なリスト項目まで宣言扱いになり、
+// 今度は本物の undeclared-cli を見逃す。
+test('undeclared-cli: a block list ends at the next frontmatter key', () => {
+  const t = ['---', 'requires:', '  - gemini', 'tags:', '  - codex', '---',
+    'run `codex exec y`'].join('\n');
+  assert.ok(has(scan(t), 'undeclared-cli'));
+});
+
 test('undeclared-cli: suppressed via --allow', () => {
   const t = 'run `codex exec y`';
   assert.ok(has(scan(t), 'undeclared-cli'));

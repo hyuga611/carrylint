@@ -89,6 +89,23 @@ npx @hyuga/carrylint --model-ids         # enable the model-id rule
 npx @hyuga/carrylint --format json       # machine-readable (VS Code / tooling)
 ```
 
+### Declare a dependency / 依存を宣言する
+
+`--allow` is the *consumer's* switch: it lives in a command line and does not travel with the skill.
+The declaration that travels is in the skill itself. Name the CLI in frontmatter — `requires`,
+`dependencies`, `tools`, `allowed-tools`, inline or as a YAML list — or install it in the body
+(`npm i -g …` / `brew install …`), and `undeclared-cli` goes quiet.
+
+```yaml
+---
+name: image-gen
+requires:
+  - codex
+---
+```
+
+依存を宣言する場所はスキルの中にある。`--allow` は使う側のフラグで一緒には運ばれない。
+
 ### Suppress a line / 行単位の無効化
 
 ```md
