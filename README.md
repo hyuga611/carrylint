@@ -47,12 +47,19 @@ still catching `/Users/CS/…`, which is a real person's initials. Both directio
 |---|---|---|
 | `abs-path` | **error** | 作者環境前提の絶対パス（`C:\Users\…` / `/Users/<実名>/` / `/home/<実名>/`）。`$HOME` / `~` / `%USERPROFILE%` と汎用名（`/home/user` 等）は可搬なので**対象外** |
 | `placeholder` | **error** | 配布物に残った未完成マーカー（`<FILL_ME>` / `REPLACE_ME` / `CHANGEME` / `<INSERT …>`）。`YOUR_API_KEY` / `/path/to/` は「置き換えてね」の正当な文書慣習なので**対象外** |
+| `gui-path` | warn | GUI 前提の保存先（`~/Desktop` / `$HOME/Downloads` / `~/Pictures/Screenshots`）。`~` 自体は可搬でも、その下の Desktop 等は**ヘッドレスのランナーに存在せず**、XDG ではロケールで名前が変わる |
 | `undeclared-cli` | warn | 外部/プロバイダCLI（`codex` `ollama` …）を宣言なしで叩く。ホストの設定/確認（`claude mcp add` `codex --version` 等）は**除外** |
+| `gui-cli` | warn | ディスプレイが要るキャプチャ系バイナリ（`screencapture` `scrot` `flameshot` …）。`undeclared-cli` と違い、**宣言しても install しても画面が無ければ動かない** |
 | `provider-env` | warn | プロバイダ固有 API キー env の生参照（`OPENAI_API_KEY` …） |
+| `unverified-write` | warn | 外部状態を書き換える手順（`git push` / `npm publish` / `INSERT INTO` / `curl -X PUT` …）があるのに、本文のどこでも読み直していない。1ファイル1件。`POST` は問い合わせにも使われるので**対象外**、禁止・言及だけの行も**対象外** |
 | `todo` | warn | 配布物に残った `TODO:` / `FIXME:` |
 | `model-id` | opt-in | モデルID直書き（`claude-*` / `gpt-*` / `gemini-*`）※`--model-ids` で有効化 |
 
-Low-noise by design: only unambiguous, author-only breakers are **error** (fail the PR); the rest are **warn**. Validated against a real-world audit of 230 public skills (v0.1.1): every remaining `error` was a genuine hardcoded personal path.
+Low-noise by design: only unambiguous, author-only breakers are **error** (fail the PR); the rest are **warn**. Validated against a real-world audit of 230 public skills (v0.1.1): every remaining `error` was a genuine hardcoded personal path. The 0.4.0 warns were tuned the same way, against 586 real ClawHub skills before release — two false-positive shapes (illustrative `e.g.` paths, HTTP `POST` used as a query) came out of that data and are excluded. Fire rates on it: `gui-path` 0.7%, `gui-cli` 0.2%, `unverified-write` 0.7%.
+
+`unverified-write` は「その手順が実際は何もしなかった」を見つけるルールではない。静的解析にそれは
+見えない（実行しないと分からない）。見えるのは **読み直す場所がどこにも無い** という形だけで、
+そこから先＝実行時に実結果を取り直させるのは [genchi](https://github.com/hyuga611/genchi) の担当。
 
 > 誤検知＝狼少年化が唯一の死因。実データ230リポの監査で ERROR の誤検知をゼロに追い込みました（v0.1.1）。
 

@@ -32,5 +32,39 @@
     "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
     "AZURE_OPENAI_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "COHERE_API_KEY",
     "OLLAMA_HOST", "OPENROUTER_API_KEY", "PERPLEXITY_API_KEY"
+  ],
+
+  "guiDirs": ["Desktop", "Downloads", "Screenshots", "Pictures/Screenshots"],
+
+  "guiClis": [
+    "screencapture", "snippingtool", "scrot", "gnome-screenshot",
+    "spectacle", "flameshot", "maim", "grim", "xwd"
+  ],
+
+  "writeSignals": [
+    "\\bgit\\s+push\\b",
+    "\\bnpm\\s+publish\\b",
+    "\\bdocker\\s+push\\b",
+    "\\b(?:curl|wget)\\b[^\\n]*?(?:-X|--request|--method=?)\\s*(?:PUT|PATCH|DELETE)\\b",
+    "\\bhttp(?:ie)?\\s+(?:PUT|PATCH|DELETE)\\s",
+    "\\b(?:INSERT\\s+INTO|DELETE\\s+FROM|TRUNCATE\\s+TABLE|DROP\\s+TABLE)\\b",
+    "\\bUPDATE\\s+[\\w.\"`\\[\\]]+\\s+SET\\b",
+    "\\baws\\s+s3\\s+(?:cp|sync|mv|rm)\\b",
+    "\\bgcloud\\s+storage\\s+(?:cp|rsync|rm)\\b",
+    "\\bkubectl\\s+(?:apply|create|delete)\\b",
+    "\\bterraform\\s+apply\\b",
+    "\\bgh\\s+(?:release|pr|issue)\\s+create\\b",
+    "\\b(?:scp|rsync)\\b[^\\n@]*\\s[^\\s@]+@[^\\s:]+:",
+    "\\bwp\\s+(?:post|option|user|term)\\s+(?:create|update|delete)\\b"
+  ],
+
+  "readbackSignals": [
+    "re-?fetch", "re-?read\\b", "read[\\s-]?back\\b",
+    "\\bverif(?:y|ies|ied|ication)\\b", "\\bvalidat(?:e|es|ed|ion)\\b",
+    "\\bconfirm(?:s|ed|ation)?\\b", "\\bcheck(?:s|ed|ing)?\\b", "\\bassert\\b",
+    "\\bSELECT\\s+[\\w*]", "\\bgit\\s+(?:log|status|show|diff)\\b",
+    "\\bgh\\s+run\\s+(?:watch|view)\\b", "\\bstatus\\s*code\\b", "\\b2\\d\\d\\s*OK\\b",
+    "\\btest\\s+-[edfs]\\b",
+    "確認|検証|再取得|突き合わせ|照合|実在"
   ]
 }

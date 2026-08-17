@@ -48,6 +48,40 @@ for (const [label, text, kind] of mustNotFlag) {
   });
 }
 
+// --- 0.4.0 の実データ監査（ClawHub 586スキル・2026-08）で見つけた誤検知と真陽性 ---
+// gui-path / unverified-write は、この監査に当てて絞り込んでから出した。
+
+const v04MustFlag = [
+  ['nature-reader: 出力先が ~/Downloads 固定', '4. **Export** — save as `~/Downloads/[paper-title]-reader.md`', 'gui-path'],
+  ['personal-toutiao-pub: スクショの保存先が ~/Desktop', '- **成功截图**：`~/Desktop/toutiao_publish_success.png`', 'gui-path'],
+  ['skill-scaffold: npm publish して読み直さない', '5. Publish: `clawdhub publish .` or `npm publish`', 'unverified-write'],
+  // 実ファイルではコードブロックの中にある。0.4.0 は散文の言及を数えないので、
+  // 抜き出すときも fence ごと持ってこないと本物を再現したことにならない。
+  ['openclaw-router: git push して読み直さない', '```bash\ngit push origin feature/your-feature\n```', 'unverified-write'],
+];
+
+for (const [label, text, kind] of v04MustFlag) {
+  test(`mustFlag (0.4.0): ${label} → ${kind}`, () => {
+    assert.ok(has(scan(text), kind), `expected a ${kind} finding for: ${text}`);
+  });
+}
+
+const v04MustNotFlag = [
+  // 「例えばこういうパス」を挙げているだけの行。YOUR_API_KEY と同じ文書慣習。
+  ['nature-reader: e.g. の例示パス', '1. **PDF file path** — e.g., `~/Downloads/paper.pdf`', 'gui-path'],
+  ['caravo: (e.g., ...) を含む説明行', 'File upload tip: pass a local path (e.g., `~/Downloads/a.png`) instead of a URL', 'gui-path'],
+  // POST は「問い合わせ」にも使われる。実データでは当たりの半分が MCP/検索/生成への
+  // 呼び出しで、外部状態を書き換えていなかった。
+  ['bohrium-wiki: POST は検索の問い合わせ', 'curl -s -X POST "$BASE/search_index_name" -d \'{"q":"x"}\'', 'unverified-write'],
+  ['pipeworx-translate: MCP エンドポイントへの POST', 'curl -X POST https://gateway.pipeworx.io/translate/mcp', 'unverified-write'],
+];
+
+for (const [label, text, kind] of v04MustNotFlag) {
+  test(`mustNotFlag (0.4.0): ${label} → no ${kind}`, () => {
+    assert.ok(!has(scan(text), kind), `0.4.0 should NOT raise ${kind} for: ${text}`);
+  });
+}
+
 // --- ClawHub registry audit (2026-08) ------------------------------------------------
 // An uppercase word template in the user segment is the same "replace this" documentation
 // convention as YOUR_API_KEY. A real author home must still be caught — `/Users/CS/` is a

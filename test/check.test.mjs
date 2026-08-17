@@ -144,6 +144,138 @@ test('model-id: off by default, on with modelIds → warn', () => {
   assert.equal(sev(fs, 'model-id'), 'warn');
 });
 
+// --- gui-path (0.4.0) ---
+// 出どころ: dev.to のコメント。「~/Desktop に保存」はヘッドレスでも壊れるのに、
+// ~ を可搬として除外した v0.1.1 以降は素通りしていた（可搬な接頭辞 + 無いかもしれない先）。
+
+test('gui-path: home-relative desktop destinations → warn', () => {
+  for (const t of [
+    'take a screenshot and save it to `~/Desktop/shot.png`',
+    'read every file in $HOME/Desktop/screenshots/',
+    'move it to %USERPROFILE%\\Downloads\\out.png',
+    'the capture lands in ~/Pictures/Screenshots/',
+  ]) {
+    const fs = scan(t);
+    assert.ok(has(fs, 'gui-path'), `expected gui-path for: ${t}`);
+    assert.equal(sev(fs, 'gui-path'), 'warn');
+  }
+});
+
+test('gui-path: portable home paths and relative paths stay silent', () => {
+  assert.ok(!has(scan('bash ~/.claude/skills/x/run.sh'), 'gui-path'));
+  assert.ok(!has(scan('write to `./out/img.png`'), 'gui-path'));
+  assert.ok(!has(scan('save to "$XDG_PICTURES_DIR/shot.png"'), 'gui-path'));
+  // 「Desktop」の語そのものは対象でない。ホーム直下の保存先として書かれたときだけ。
+  assert.ok(!has(scan('open the Desktop app and sign in'), 'gui-path'));
+});
+
+test('gui-path: an author-specific desktop path is reported once, as abs-path', () => {
+  // C:\Users\alice\Desktop は既に error。同じ行を warn で二重に出さない。
+  const fs = scan('save to C:\\Users\\alice\\Desktop\\out.png');
+  assert.ok(has(fs, 'abs-path'));
+  assert.ok(!has(fs, 'gui-path'));
+});
+
+// --- gui-cli (0.4.0) ---
+
+test('gui-cli: capture binaries need a display → warn', () => {
+  const fs = scan('run `screencapture -x out.png`');
+  assert.ok(has(fs, 'gui-cli'));
+  assert.equal(sev(fs, 'gui-cli'), 'warn');
+  assert.ok(has(scan(['```bash', 'scrot shot.png', '```'].join('\n')), 'gui-cli'));
+});
+
+test('gui-cli: declaring or installing it does not silence the warning', () => {
+  // undeclared-cli とは別物。入っていても画面が無ければ動かない。
+  const t = ['---', 'requires:', '  - flameshot', '---',
+    '```bash', 'brew install flameshot', 'flameshot gui --path ./out', '```'].join('\n');
+  const fs = scan(t);
+  assert.ok(has(fs, 'gui-cli'));
+  assert.ok(!has(fs, 'undeclared-cli'));
+});
+
+test('gui-cli: bare mentions and version checks are not invocations', () => {
+  assert.ok(!has(scan('we use `flameshot` on Linux'), 'gui-cli'));
+  assert.ok(!has(scan('run `screencapture --version` first'), 'gui-cli'));
+});
+
+// --- unverified-write (0.4.0) ---
+// 静的解析に「その手順が実際は何もしなかった」は見えない。見えるのは
+// 「書き換えたのに読み直す場所がどこにも無い」という形だけ。
+
+test('unverified-write: an external write with no read-back → warn, once per file', () => {
+  const t = ['1. deploy:', '```bash', 'git push origin main', 'npm publish', '```'].join('\n');
+  const fs = scan(t);
+  assert.equal(fs.filter((f) => f.kind === 'unverified-write').length, 1);
+  assert.equal(sev(fs, 'unverified-write'), 'warn');
+  assert.equal(fs.find((f) => f.kind === 'unverified-write').ln, 3); // 最初の書き込み行
+});
+
+test('unverified-write: any read-back anywhere in the file silences it', () => {
+  for (const tail of [
+    'Then verify the tag is live.',
+    'Re-fetch the release and compare.',
+    '```sql\nSELECT count(*) FROM rows;\n```',
+    '公開後に本番URLを再取得して実在を確認する。',
+    'Check the published version afterwards.',
+  ]) {
+    const t = ['```bash', 'git push origin main', '```', tail].join('\n');
+    assert.ok(!has(scan(t), 'unverified-write'), `should stay silent with: ${tail}`);
+  }
+});
+
+test('unverified-write: SQL mutations count, local file work does not', () => {
+  assert.ok(has(scan('run `INSERT INTO posts VALUES (1)`'), 'unverified-write'));
+  assert.ok(has(scan('run `UPDATE posts SET title = "x"`'), 'unverified-write'));
+  assert.ok(!has(scan('```bash\nmkdir -p ./out\nmv a.png ./out/\n```'), 'unverified-write'));
+});
+
+test('unverified-write: carry-ignore on the write line suppresses it', () => {
+  const t = 'run `git push origin main` <!-- carry-ignore -->';
+  assert.ok(!has(scan(t), 'unverified-write'));
+});
+
+// publish 直前のクロスレビュー（別モデル）で出た誤検知。禁止を明記した AGENTS.md ほど
+// 警告される形で、0.3.1 の undeclared-cli（宣言した人ほど刺さる）と同型だった。
+test('unverified-write: 「やるな」と書いてある行は手順ではない', () => {
+  for (const t of [
+    'Never run `git push --force` from this skill.',
+    '- Do not `npm publish` unless explicitly asked.',
+    'エージェントが勝手に `git push` してはいけない。',
+  ]) {
+    assert.ok(!has(scan(t), 'unverified-write'), `禁止の行を手順と数えた: ${t}`);
+  }
+});
+
+test('unverified-write: 散文の言及は手順ではない（コード文脈でだけ数える）', () => {
+  assert.ok(!has(scan('After that we push to git and publish to npm.'), 'unverified-write'));
+  assert.ok(has(scan('run `npm publish` last'), 'unverified-write'));
+});
+
+test('unverified-write: carry-ignore した行の読み直しは黙らせる側に回らない', () => {
+  const fence = (l) => ['```bash', l, '```'].join('\n');
+  const ignored = `${fence('git push origin main')}\nverify it landed. <!-- carry-ignore -->`;
+  const normal = `${fence('git push origin main')}\nverify it landed.`;
+  assert.ok(has(scan(ignored), 'unverified-write'), '無効化した行が黙らせる側に回っている');
+  assert.ok(!has(scan(normal), 'unverified-write'));
+});
+
+test('gui-cli: --allow では黙らない（在ることにしても画面は生えない）', () => {
+  const t = 'run `flameshot gui --path ./out`';
+  assert.ok(has(scan(t, { allow: ['flameshot'] }), 'gui-cli'));
+});
+
+// リンタは他人の任意のファイルの全行に当たるので、1行が長いだけで固まってはいけない。
+// scp/rsync の書き込み判定は当初 `[^\n]*\s\S+@\S+:` で、@ を多く含み : を含まない行に
+// 対して総当たりになっていた（2万文字77ms → 4万文字312ms の二乗）。CI を止める形。
+test('unverified-write: 長い1行でも総当たりにならない', () => {
+  const pathological = `rsync ${'a@'.repeat(40000)}`; // 8万文字・一致しそうで一致しない
+  const t = process.hrtime.bigint();
+  scan(pathological);
+  const ms = Number(process.hrtime.bigint() - t) / 1e6;
+  assert.ok(ms < 200, `1行の走査に ${ms.toFixed(0)}ms かかった（総当たりの疑い）`);
+});
+
 test('carry-ignore: comment on the line suppresses its findings', () => {
   const withPath = scan('use `C:\\Users\\me\\x` here');
   assert.ok(has(withPath, 'abs-path'));

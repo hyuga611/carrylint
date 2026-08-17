@@ -8,8 +8,12 @@
 //                      ※ $HOME / ~ / %USERPROFILE% と汎用名(/home/user 等)は可搬なので対象外
 //   ・placeholder    : 配布物に残った未完成マーカー (<FILL_ME> REPLACE_ME CHANGEME <INSERT…>)  [ERROR]
 //                      ※ YOUR_API_KEY / /path/to/ は「置き換えてね」の正当な文書慣習なので対象外
+//   ・gui-path       : GUI 前提の保存先 (~/Desktop $HOME/Downloads ~/Pictures/Screenshots)     [WARN]
+//                      ※ ~ /$HOME 自体は可搬でも、その下の Desktop 等はヘッドレスに存在しない
 //   ・undeclared-cli : 外部/プロバイダCLIを宣言なしで叩く。ホストの mcp add/--version 等は除外  [WARN]
+//   ・gui-cli        : ディスプレイが要るキャプチャ系バイナリ (screencapture scrot …)          [WARN]
 //   ・provider-env   : プロバイダ固有の API キー env の生参照                                    [WARN]
+//   ・unverified-write: 外部状態を書き換えるのに、本文のどこでも読み直していない                 [WARN]
 //   ・todo           : 配布物に残った TODO:/FIXME:/XXX:                                          [WARN]
 //   ・model-id       : モデルID直書き (claude-* gpt-* gemini-*)   ← 既定OFF・--model-ids で有効  [opt-in]
 //
@@ -76,6 +80,49 @@ export const DEFAULT_RULES = {
     'AZURE_OPENAI_API_KEY', 'GROQ_API_KEY', 'MISTRAL_API_KEY', 'COHERE_API_KEY',
     'OLLAMA_HOST', 'OPENROUTER_API_KEY', 'PERPLEXITY_API_KEY',
   ],
+  // ホーム直下にあっても「デスクトップセッションがある」前提の保存先。
+  // ヘッドレスのランナーには存在せず、XDG ではロケールで名前が変わる。
+  guiDirs: ['Desktop', 'Downloads', 'Screenshots', 'Pictures/Screenshots'],
+  // ディスプレイ（X11/Wayland/Quartz）が無いと動かないキャプチャ系バイナリ。
+  guiClis: [
+    'screencapture', 'snippingtool', 'scrot', 'gnome-screenshot',
+    'spectacle', 'flameshot', 'maim', 'grim', 'xwd',
+  ],
+  // 外部の状態を書き換える手順の印。ローカルファイルへの書き出しは含めない
+  // （読み直しの有無が問題になるのは、自分では見えない先に書いたときだけ）。
+  writeSignals: [
+    '\\bgit\\s+push\\b',
+    '\\bnpm\\s+publish\\b',
+    '\\bdocker\\s+push\\b',
+    // POST は入れない。実データ586スキルでは POST の当たりの半分が MCP エンドポイント・
+    // 検索・生成への「問い合わせ」で、外部状態を書き換えていなかった（HTTP の POST は
+    // 仕様上「処理してくれ」であって書き込みとは限らない）。PUT/PATCH/DELETE は変更が確定的。
+    '\\b(?:curl|wget)\\b[^\\n]*?(?:-X|--request|--method=?)\\s*(?:PUT|PATCH|DELETE)\\b',
+    '\\bhttp(?:ie)?\\s+(?:PUT|PATCH|DELETE)\\s',
+    '\\b(?:INSERT\\s+INTO|DELETE\\s+FROM|TRUNCATE\\s+TABLE|DROP\\s+TABLE)\\b',
+    '\\bUPDATE\\s+[\\w."`\\[\\]]+\\s+SET\\b',
+    '\\baws\\s+s3\\s+(?:cp|sync|mv|rm)\\b',
+    '\\bgcloud\\s+storage\\s+(?:cp|rsync|rm)\\b',
+    '\\bkubectl\\s+(?:apply|create|delete)\\b',
+    '\\bterraform\\s+apply\\b',
+    '\\bgh\\s+(?:release|pr|issue)\\s+create\\b',
+    // `[^\n]*\s\S+@\S+:` と書くと、@ を多く含み : を含まない長い行で総当たりになる
+    // （2万文字で77ms・4万文字で312ms＝二乗）。リンタは任意のファイルの全行に当たるので、
+    // 手前の埋め草が @ を跨がないようにして曖昧さを消す。
+    '\\b(?:scp|rsync)\\b[^\\n@]*\\s[^\\s@]+@[^\\s:]+:',
+    '\\bwp\\s+(?:post|option|user|term)\\s+(?:create|update|delete)\\b',
+  ],
+  // 「書いたあとに実結果を見に行っている」ことを示す語。取りこぼすと誤検知になるので
+  // わざと広く取る（このルールは再現率より適合率を優先する）。
+  readbackSignals: [
+    're-?fetch', 're-?read\\b', 'read[\\s-]?back\\b',
+    '\\bverif(?:y|ies|ied|ication)\\b', '\\bvalidat(?:e|es|ed|ion)\\b',
+    '\\bconfirm(?:s|ed|ation)?\\b', '\\bcheck(?:s|ed|ing)?\\b', '\\bassert\\b',
+    '\\bSELECT\\s+[\\w*]', '\\bgit\\s+(?:log|status|show|diff)\\b',
+    '\\bgh\\s+run\\s+(?:watch|view)\\b', '\\bstatus\\s*code\\b', '\\b2\\d\\d\\s*OK\\b',
+    '\\btest\\s+-[edfs]\\b',
+    '確認|検証|再取得|突き合わせ|照合|実在',
+  ],
 };
 
 // 配布物に残っていたら「作者が埋め忘れた未完成」を示す、曖昧さゼロのマーカーのみ（ERROR）。
@@ -95,6 +142,19 @@ const DRIVE_ABS = /(?<![\w.])[A-Za-z]:\\[^\s`"')<>|]+/g;                       /
 // /Users/<name>/ ・ /home/<name>/ の <name> を捕捉（汎用名/glob は後段で除外）。
 const UNIX_USER_ABS = /(?<![\w.\-\/])\/(Users|home)\/([^\s/`"')<>|]+)([^\s`"')<>|]*)/g;
 const TODO_MARK = /(?:\b(?:TODO|FIXME|HACK|XXX)\b\s*[:：]|<!--\s*(?:TODO|FIXME)\b)/;
+
+// ユーザーごとに解決される＝可搬なホーム表記。abs-path はこれを意図的に見逃す（v0.1.1）が、
+// 「可搬な接頭辞 + 存在するとは限らないディレクトリ」はそこをすり抜けていた（gui-path で拾う）。
+const HOME_PREFIX = String.raw`(?:~|\$HOME|\$\{HOME\}|\$env:(?:USERPROFILE|HOME)|%USERPROFILE%|%HOMEPATH%|\$USERPROFILE)`;
+// 「例えばこういうパス」を挙げているだけの行。YOUR_API_KEY / /path/to/ を ERROR から
+// 外したのと同じ文書慣習で、実データではここが gui-path の誤検知の主な出どころだった。
+const ILLUSTRATIVE = /\b(?:e\.?g\.?|for example|example[:s]?|sample)\b|例え?ば|たとえば|例：/i;
+// 「やるな」と書いてある行は手順ではない。AGENTS.md / CLAUDE.md には
+// 「`git push` は勝手にするな」の類が普通に並ぶので、これを書き込み手順と数えると
+// **禁止を明記した人ほど警告される**（0.3.1 の undeclared-cli と同じ形の誤検知）。
+const PROHIBITION = /\b(?:never|do not|don't|doesn't|must not|should not|avoid|prohibited|forbidden|no need to)\b|禁止|するな|しないで|してはいけない|勝手に|不可/i;
+// 長い一致で行が読めなくなるので、メッセージに載せる引用は詰める。
+const brief = (s) => (s.length > 40 ? `${s.slice(0, 39)}…` : s);
 
 // v0.1.1: $HOME / ${HOME} / %USERPROFILE% / ~ は各ユーザーで解決＝可搬。エラーにしない
 // （実データ監査で「これらは可搬な書き方」だと確認）。実在の個人パスは /Users/<実名>/ のみ。
@@ -174,13 +234,13 @@ function firstCommandWord(seg) {
 }
 
 /**
- * 行から providerCLI の「呼び出し」を集める。コード文脈（fence行 or backtickスパン中身）で、
- * かつツール名の後ろに引数/サブコマンドがあるものだけを呼び出しとみなす。
- * 裸の言及（`codex` だけ等）は呼び出しではない＝誤検知しない。
+ * 行から `names` に載っている CLI の「呼び出し」を集める。コード文脈（fence行 or
+ * backtickスパン中身）で、かつツール名の後ろに引数/サブコマンドがあるものだけを
+ * 呼び出しとみなす。裸の言及（`codex` だけ等）は呼び出しではない＝誤検知しない。
  */
-function cliInvocations(line, inFence, rules) {
+function cliInvocations(line, inFence, names) {
   const hits = new Set();
-  const providers = new Set(rules.providerClis);
+  const providers = names instanceof Set ? names : new Set(names);
   const segments = [];
   if (inFence) segments.push(line);
   for (const m of line.matchAll(/`([^`]+)`/g)) segments.push(m[1]);
@@ -214,8 +274,21 @@ export function scan(text, opts = {}) {
   const declared = declaredTools(text, rules);
   const modelRe = new RegExp('\\b(?:' + rules.modelIdPatterns.join('|') + ')\\b', 'gi');
   const envRe = new RegExp('\\b(?:' + rules.providerEnv.join('|') + ')\\b');
+  const providerCliSet = new Set(rules.providerClis);
+  const guiCliSet = new Set(rules.guiClis || []);
+  const guiDirAlt = (rules.guiDirs || [])
+    .map((d) => d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\//g, '[\\\\/]'))
+    .join('|');
+  const guiDirRe = guiDirAlt
+    ? new RegExp(`${HOME_PREFIX}[\\\\/](?:${guiDirAlt})\\b`, 'gi')
+    : null;
+  const writeRes = (rules.writeSignals || []).map((s) => new RegExp(s, 'i'));
+  const readbackRe = (rules.readbackSignals || []).length
+    ? new RegExp((rules.readbackSignals || []).join('|'), 'i')
+    : null;
 
   const findings = [];
+  let firstWrite = null;
   const lines = String(text).split(/\r?\n/);
 
   // 無効化コメントの行集合を先に作る。
@@ -224,6 +297,12 @@ export function scan(text, opts = {}) {
     if (/<!--\s*carry-ignore\s*-->/.test(line)) ignored.add(i + 1);
     if (/<!--\s*carry-ignore-next\s*-->/.test(line)) ignored.add(i + 2);
   });
+
+  // 読み直しは行単位ではなく本文で1回だけ見る（節をまたいで書かれるのが普通で、
+  // 行単位にすると「書いてあるのに拾えない」＝誤検知になる）。ただし carry-ignore した行は
+  // 数えない——無効化した行が黙らせる側に回るのは、carry-ignore の意味として一貫しない。
+  const sawReadback = !!readbackRe
+    && lines.some((line, i) => !ignored.has(i + 1) && readbackRe.test(line));
 
   let inFence = false;
   lines.forEach((line, i) => {
@@ -256,7 +335,20 @@ export function scan(text, opts = {}) {
       push(findings, ln, 'abs-path', 'error', `author-specific absolute path \`${m[0].trim()}\` — \`${m[1]}/${m[2]}\` does not exist elsewhere (use a relative path or {baseDir})`);
     }
 
-    // 2) 未解決プレースホルダ（ERROR）
+    // 2) GUI/デスクトップ前提の保存先（WARN）。~ や $HOME 自体は可搬なので abs-path は
+    //    見逃すが、その下の Desktop/Downloads/Screenshots はヘッドレスのランナーに存在せず、
+    //    XDG ではロケールで名前が変わる。壊れ方は abs-path と同じで、静かに落ちる。
+    if (guiDirRe && !ILLUSTRATIVE.test(line)) {
+      guiDirRe.lastIndex = 0;
+      const seenGui = new Set();
+      for (const m of line.matchAll(guiDirRe)) {
+        if (seenGui.has(m[0])) continue;
+        seenGui.add(m[0]);
+        push(findings, ln, 'gui-path', 'warn', `\`${m[0]}\` assumes a desktop session — a headless runner has no such directory and XDG/localized setups name it differently (discover the directory, or take it as a parameter)`);
+      }
+    }
+
+    // 3) 未解決プレースホルダ（ERROR）
     for (const re of PLACEHOLDER_ERROR) {
       const m = line.match(re);
       if (m) {
@@ -265,25 +357,45 @@ export function scan(text, opts = {}) {
       }
     }
 
-    // 3) 外部/プロバイダCLIの呼び出し（宣言なし）。ホスト自身の設定/確認(mcp add 等)は除外済み。
+    // 4) 外部/プロバイダCLIの呼び出し（宣言なし）。ホスト自身の設定/確認(mcp add 等)は除外済み。
     //    概念的に曖昧なので v0.1.1 で ERROR→WARN に降格（PRは落とさず注意喚起のみ）。
-    for (const cli of cliInvocations(line, inFence, rules)) {
+    for (const cli of cliInvocations(line, inFence, providerCliSet)) {
       if (allow.has(cli) || declared.has(cli)) continue;
       push(findings, ln, 'undeclared-cli', 'warn', `calls \`${cli}\` but never declares or installs it — it may not be present elsewhere`);
     }
 
-    // 4) プロバイダ固有 env の生参照（WARN）
+    // 5) ディスプレイが要るキャプチャ系バイナリ（WARN）。undeclared-cli とは別物で、
+    //    宣言しても install しても、画面が無い環境では動かない。
+    //    --allow では黙らせない。あれは「そのコマンドは在ることにする」という宣言で、
+    //    画面の有無とは無関係だから（黙らせるなら carry-ignore か rules.json の guiClis）。
+    for (const cli of cliInvocations(line, inFence, guiCliSet)) {
+      push(findings, ln, 'gui-cli', 'warn', `calls \`${cli}\`, which needs a display — declaring it does not make it run on a headless runner (accept a supplied image path, or make the capture step optional)`);
+    }
+
+    // 6) プロバイダ固有 env の生参照（WARN）
     {
       const m = line.match(envRe);
       if (m) push(findings, ln, 'provider-env', 'warn', `assumes \`${m[0]}\` is set — document it in .env.example and handle the unset case`);
     }
 
-    // 5) TODO/FIXME 残り（WARN）
+    // 7) 外部状態を書き換える手順（あとで本文全体の読み直しの有無と突き合わせる）。
+    //    undeclared-cli と同じくコード文脈でだけ数える——散文の言及は手順ではない。
+    if (!firstWrite && !PROHIBITION.test(line)) {
+      const code = inFence ? line : Array.from(line.matchAll(/`([^`]+)`/g), (m) => m[1]).join(' ; ');
+      if (code) {
+        for (const re of writeRes) {
+          const m = code.match(re);
+          if (m) { firstWrite = { ln, text: m[0].trim() }; break; }
+        }
+      }
+    }
+
+    // 8) TODO/FIXME 残り（WARN）
     if (TODO_MARK.test(line)) {
       push(findings, ln, 'todo', 'warn', 'TODO/FIXME marker left in a shipped file');
     }
 
-    // 6) モデルID直書き（opt-in）
+    // 9) モデルID直書き（opt-in）
     if (modelIds) {
       modelRe.lastIndex = 0;
       const seen = new Set();
@@ -295,6 +407,14 @@ export function scan(text, opts = {}) {
     }
   });
 
+  // 10) 書いたきり読み直していない（WARN・ファイル単位で1件）。静的解析に「その手順が
+  //     実際は何もしなかった」は見えないので、見えるのは「読み直す場所がどこにも無い」
+  //     という形だけ。1件も出さない方がマシなので、読み直しの語は広く取ってある。
+  if (firstWrite && !sawReadback) {
+    push(findings, firstWrite.ln, 'unverified-write', 'warn', `changes external state (\`${brief(firstWrite.text)}\`) but nothing in this file reads that state back — the step can fail and still be reported as done`);
+  }
+
+  findings.sort((a, b) => a.ln - b.ln);
   return findings;
 }
 
