@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, symlinkSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -35,5 +35,38 @@ test('シンボリックリンク経由でも CLI が動く（npm i -g / npx と
     assert.notEqual(out.trim(), '', 'リンク経由で呼ぶと CLI が何も出力しない＝入口判定が壊れている');
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ルール定義は2箇所にある。src/check.mjs の DEFAULT_RULES と、パッケージに同梱される
+// rules.json だ。loadRules() は `{ ...DEFAULT_RULES, ...rules.json }` と重ねるので、
+// **rules.json 側だけが持つ値は黙って DEFAULT_RULES を上書きする**。
+//
+// 片方にルールを足してもう片方を忘れると、ライブラリとして import した挙動と、
+// 同梱設定を読む CLI の挙動が食い違う。しかも出力は正常に見える——鳴らないだけだ。
+//
+// genchi 0.4.2 がこの形でやられた。契約の解釈が CLI とフックにコピーされていて、
+// テストがある側だけが直り、無い側（README が配線しろと言う側）が2バージョン置き去りに
+// なっていた。コピーが2つあってテストが1つなら、必ずテストのある側だけが正しくなる。
+test('rules.json と DEFAULT_RULES は一致している（コピーが2つある以上、ずれを検出する）', async () => {
+  const { DEFAULT_RULES } = await import('../src/check.mjs');
+  const raw = JSON.parse(readFileSync(resolve(import.meta.dirname, '..', 'rules.json'), 'utf8'));
+
+  // _comment は rules.json 側の説明文で、ルールではない。
+  const shipped = Object.keys(raw).filter((k) => k !== '_comment');
+  const defaults = Object.keys(DEFAULT_RULES);
+
+  assert.deepEqual(
+    shipped.slice().sort(),
+    defaults.slice().sort(),
+    '片方にしか無いルール族がある——loadRules() が重ねるので挙動が静かに分岐する',
+  );
+
+  for (const k of defaults) {
+    assert.deepEqual(
+      raw[k],
+      DEFAULT_RULES[k],
+      `${k} が rules.json と DEFAULT_RULES で違う——同梱設定を読む CLI だけ挙動が変わる`,
+    );
   }
 });
