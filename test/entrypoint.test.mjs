@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, symlinkSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// import.meta.dirname は Node 20.11 で入ったもので、18 では undefined。
+// package.json は engines ">=18" と宣言していて CI にも 18.x が居るので、
+// 使うとそのマトリクスだけ ERR_INVALID_ARG_TYPE で落ちる。
+// **これは test/cli.test.mjs で一度直した罠の再発**（そちらにも同じ注意書きがある）。
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 // `npm i -g` と `npx` は、どちらもシンボリックリンク越しに CLI を呼ぶ。そのとき argv[1] は
 // リンクのパスで、解決済みの実パスである import.meta.url とは一致しない。リンクを解決せずに
@@ -50,7 +57,7 @@ test('シンボリックリンク経由でも CLI が動く（npm i -g / npx と
 // なっていた。コピーが2つあってテストが1つなら、必ずテストのある側だけが正しくなる。
 test('rules.json と DEFAULT_RULES は一致している（コピーが2つある以上、ずれを検出する）', async () => {
   const { DEFAULT_RULES } = await import('../src/check.mjs');
-  const raw = JSON.parse(readFileSync(resolve(import.meta.dirname, '..', 'rules.json'), 'utf8'));
+  const raw = JSON.parse(readFileSync(resolve(HERE, '..', 'rules.json'), 'utf8'));
 
   // _comment は rules.json 側の説明文で、ルールではない。
   const shipped = Object.keys(raw).filter((k) => k !== '_comment');
